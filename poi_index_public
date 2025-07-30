@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contribute to PoI API</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; max-width: 600px; margin: 40px auto; padding: 20px; background-color: #f4f7f6; }
+        .container { background: #fff; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        input, button { width: 100%; padding: 12px; margin-bottom: 1rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 16px; }
+        button { background-color: #007bff; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #ccc; }
+        #status { margin-top: 1rem; font-weight: bold; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📸 Upload Parking Spot Image</h1>
+        <p>Help us map parking availability by uploading a photo of a parking spot.</p>
+
+        <form id="upload-form">
+            <div>
+                <label for="parking_image">1. Parking Spot Image (Required)</label>
+                <input type="file" id="parking_image" accept="image/*" required>
+            </div>
+            <div>
+                <label for="bay_slot">2. Floor or Bay/Slot ID (Optional)</label>
+                <input type="text" id="bay_slot" placeholder="e.g., Floor 3, Spot A-12">
+            </div>
+            <button type="submit" id="submit-button">Upload Contribution</button>
+        </form>
+        <div id="status"></div>
+    </div>
+
+    <script>
+        const uploadForm = document.getElementById('upload-form');
+        const fileInput = document.getElementById('parking_image');
+        const baySlotInput = document.getElementById('bay_slot');
+        const submitButton = document.getElementById('submit-button');
+        const statusDiv = document.getElementById('status');
+        
+        // PASTE YOUR API GATEWAY URL HERE
+        const API_ENDPOINT = 'https://your-api-gateway-endpoint-url.execute-api.us-east-1.amazonaws.com/';
+
+        uploadForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            
+            const file = fileInput.files[0];
+            if (!file) {
+                statusDiv.textContent = 'Please select a file to upload.';
+                statusDiv.style.color = 'red';
+                return;
+            }
+
+            submitButton.disabled = true;
+            statusDiv.textContent = 'Requesting upload link...';
+            statusDiv.style.color = 'black';
+
+            try {
+                // 1. Get the pre-signed URL from our API
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ fileName: file.name })
+                });
+
+                if (!response.ok) throw new Error('Failed to get upload URL.');
+                
+                const { uploadURL } = await response.json();
+                
+                statusDiv.textContent = 'Uploading...';
+
+                // 2. Upload the file directly to S3 using the pre-signed URL
+                const uploadResponse = await fetch(uploadURL, {
+                    method: 'PUT',
+                    body: file,
+                    headers: {
+                        'Content-Type': file.type,
+                        // Pass metadata for the other Lambda to read
+                        'x-amz-meta-slot-id': baySlotInput.value || 'N/A',
+                        'x-amz-meta-floor': baySlotInput.value || 'N/A' // Example, you can split this
+                    }
+                });
+
+                if (!uploadResponse.ok) throw new Error('S3 upload failed.');
+                
+                statusDiv.textContent = '✅ Success! Thank you for your contribution.';
+                statusDiv.style.color = 'green';
+                uploadForm.reset();
+
+            } catch (error) {
+                console.error('Upload Error:', error);
+                statusDiv.textContent = `Error: ${error.message}`;
+                statusDiv.style.color = 'red';
+            } finally {
+                submitButton.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
