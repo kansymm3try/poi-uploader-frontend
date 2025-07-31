@@ -12,6 +12,7 @@
         button:hover { background-color: #0056b3; }
         button:disabled { background-color: #ccc; }
         #status { margin-top: 1rem; font-weight: bold; text-align: center; }
+        .optional-text { color: #666; font-size: 0.9em; }
     </style>
 </head>
 <body>
@@ -24,10 +25,16 @@
                 <label for="parking_image">1. Parking Spot Image (Required)</label>
                 <input type="file" id="parking_image" accept="image/*" required>
             </div>
+            
             <div>
-                <label for="bay_slot">2. Floor or Bay/Slot ID (Optional)</label>
-                <input type="text" id="bay_slot" placeholder="e.g., Floor 3, Spot A-12">
+                <label for="floor_input">2. Floor <span class="optional-text">(Optional)</span></label>
+                <input type="text" id="floor_input" placeholder="e.g., P3">
             </div>
+            <div>
+                <label for="slot_input">3. Bay / Slot ID <span class="optional-text">(Optional)</span></label>
+                <input type="text" id="slot_input" placeholder="e.g., A-12">
+            </div>
+            
             <button type="submit" id="submit-button">Upload Contribution</button>
         </form>
         <div id="status"></div>
@@ -36,7 +43,11 @@
     <script>
         const uploadForm = document.getElementById('upload-form');
         const fileInput = document.getElementById('parking_image');
-        const baySlotInput = document.getElementById('bay_slot');
+        
+        // EDITED SECTION: Get the two new input elements
+        const floorInput = document.getElementById('floor_input');
+        const slotInput = document.getElementById('slot_input');
+        
         const submitButton = document.getElementById('submit-button');
         const statusDiv = document.getElementById('status');
         
@@ -62,7 +73,13 @@
                 const response = await fetch(API_ENDPOINT, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ fileName: file.name, fileType: file.type, baySlot: baySlotInput.value })
+                    // EDITED SECTION: Send both floor and baySlot values
+                    body: JSON.stringify({ 
+                        fileName: file.name, 
+                        fileType: file.type, 
+                        floor: floorInput.value, 
+                        baySlot: slotInput.value 
+                    })
                 });
 
                 if (!response.ok) throw new Error('Failed to get upload URL.');
