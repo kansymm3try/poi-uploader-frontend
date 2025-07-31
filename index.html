@@ -76,10 +76,7 @@
                     method: 'PUT',
                     body: file,
                     headers: {
-                        'Content-Type': file.type,
-                        // Pass metadata for the other Lambda to read
-                        'x-amz-meta-slot-id': baySlotInput.value || 'N/A',
-                        'x-amz-meta-floor': baySlotInput.value || 'N/A' // Example, you can split this
+                        'Content-Type': file.type
                     }
                 });
 
