@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Parking POI Map</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css" rel="stylesheet">
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        /* Style for the popup */
+        .mapboxgl-popup-content { font-family: sans-serif; padding: 10px; }
+        .mapboxgl-popup-content h3 { margin: 0 0 5px; font-size: 14px; color: #333; }
+        .mapboxgl-popup-content p { margin: 0; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js"></script>
+<script>
+    // YOUR MAPBOX ACCESS TOKEN
+    mapboxgl.accessToken = 'pk.eyJ1Ijoia2Fuc3ltbTN0cnkiLCJhIjoiY21kbzczZnJlMjQwMDJ2b3N4cnF5ZDRpbyJ9.O96MKO58HtHA9UdcIsM0qQ';
+
+    const map = new mapboxgl.Map({
+        container: 'map',
+        // YOUR MAPBOX STYLE URL
+        style: 'mapbox://styles/kansymm3try/cmdo79m5a00bc01s89dcs6so9',
+        center: [100.523186, 13.736717], // Starting position centered on Bangkok
+        zoom: 11 // Starting zoom
+    });
+
+    // This block runs after the map has finished loading
+    map.on('load', () => {
+        // Add a GeoJSON source with the data from your public S3 bucket
+        map.addSource('parking-spots', {
+            type: 'geojson',
+            // This URL points to the map data file that your Lambda creates
+            data: 'https://map-data-poi.s3.ap-southeast-1.amazonaws.com/map-data.geojson'
+        });
+
+        // Add a layer to display the data as circles (pins)
+        map.addLayer({
+            'id': 'parking-layer',
+            'type': 'circle',
+            'source': 'parking-spots',
+            'paint': {
+                'circle-color': '#007cbf',
+                'circle-radius': 6,
+                'circle-stroke-width': 2,
+                'circle-stroke-color': '#ffffff'
+            }
+        });
+
+        // Create a popup, but don't add it to the map yet.
+        const popup = new mapboxgl.Popup({
+            closeButton: false,
+            closeOnClick: false
+        });
+
+        // Show popup on mouse hover
+        map.on('mouseenter', 'parking-layer', (e) => {
+            map.getCanvas().style.cursor = 'pointer'; // Change cursor to a pointer
+
+            const coordinates = e.features[0].geometry.coordinates.slice();
+            const properties = e.features[0].properties;
+
+            const popupHTML = `
+                <h3>Parking Spot</h3>
+                <p><strong>Floor:</strong> ${properties.floor}</p>
+                <p><strong>Slot:</strong> ${properties.slot_id}</p>
+                <p><strong>Image Ref:</strong> ${properties.image_ref}</p>
+            `;
+            
+            popup.setLngLat(coordinates).setHTML(popupHTML).addTo(map);
+        });
+
+        // Hide popup when mouse leaves
+        map.on('mouseleave', 'parking-layer', () => {
+            map.getCanvas().style.cursor = '';
+            popup.remove();
+        });
+    });
+</script>
+
+</body>
+</html>
