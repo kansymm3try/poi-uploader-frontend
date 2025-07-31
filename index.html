@@ -62,7 +62,7 @@
                 const response = await fetch(API_ENDPOINT, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ fileName: file.name, fileType: file.type })
+                    body: JSON.stringify({ fileName: file.name, fileType: file.type, baySlot: baySlotInput.value })
                 });
 
                 if (!response.ok) throw new Error('Failed to get upload URL.');
