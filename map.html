@@ -12,6 +12,7 @@
         .mapboxgl-popup-content { font-family: sans-serif; padding: 10px; }
         .mapboxgl-popup-content h3 { margin: 0 0 5px; font-size: 14px; color: #333; }
         .mapboxgl-popup-content p { margin: 0; font-size: 12px; }
+        .mapboxgl-popup-content img { margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -33,12 +34,15 @@
 
     // This block runs after the map has finished loading
     map.on('load', () => {
+        console.log("Map finished loading.");
+
         // Add a GeoJSON source with the data from your public S3 bucket
         map.addSource('parking-spots', {
             type: 'geojson',
             // This URL points to the map data file that your Lambda creates
             data: 'https://map-data-poi.s3.ap-southeast-1.amazonaws.com/map-data.geojson'
         });
+        console.log("Source 'parking-spots' added.");
 
         // Add a layer to display the data as circles (pins)
         map.addLayer({
@@ -52,6 +56,22 @@
                 'circle-stroke-color': '#ffffff'
             }
         });
+        console.log("Layer 'parking-layer' added.");
+        
+        // --- NEW DEBUGGING CODE ---
+        // This will tell us if the map is successfully loading the data from the source.
+        map.on('sourcedata', function (e) {
+            if (e.sourceId === 'parking-spots' && e.isSourceLoaded) {
+                const features = map.querySourceFeatures('parking-spots');
+                console.log("✅ Source data loaded successfully. Number of features found:", features.length);
+            }
+        });
+
+        // This will tell us if Mapbox is encountering any rendering errors.
+        map.on('error', function(e) {
+            console.error("❌ Mapbox error:", e.error);
+        });
+        // --- END DEBUGGING CODE ---
 
         // Create a popup, but don't add it to the map yet.
         const popup = new mapboxgl.Popup({
