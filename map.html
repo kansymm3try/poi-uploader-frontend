@@ -12,7 +12,7 @@
         .mapboxgl-popup-content { font-family: sans-serif; padding: 10px; }
         .mapboxgl-popup-content h3 { margin: 0 0 5px; font-size: 14px; color: #333; }
         .mapboxgl-popup-content p { margin: 0; font-size: 12px; }
-        .mapboxgl-popup-content img { margin-top: 5px; }
+        .mapboxgl-popup-content img { margin-top: 5px; border-radius: 4px; }
     </style>
 </head>
 <body>
@@ -32,46 +32,65 @@
         zoom: 11 // Starting zoom
     });
 
+    // --- HELPER FUNCTIONS ---
+    function getAccuracyInstruction(accuracyInMeters) {
+        if (!accuracyInMeters || accuracyInMeters === 0) return "Not available";
+        if (accuracyInMeters <= 10) return `Very High (spot should be at this pin)`;
+        else if (accuracyInMeters <= 25) return `High (look within a few car lengths)`;
+        else if (accuracyInMeters <= 50) return `Medium (look in the immediate area)`;
+        else return `Low (spot is in this general area, GPS was weak)`;
+    }
+
+    function formatPoiType(poiType) {
+        if (!poiType) return "Point of Interest";
+        switch (poiType) {
+            case 'parking_spot':
+                return 'Parking Spot';
+            case 'pickup':
+                return 'Pickup Location';
+            case 'dropoff':
+                return 'Drop-off Location';
+            default:
+                // Capitalize the first letter for unknown types
+                return poiType.charAt(0).toUpperCase() + poiType.slice(1);
+        }
+    }
+
     // This block runs after the map has finished loading
     map.on('load', () => {
-        console.log("Map finished loading.");
-
         // Add a GeoJSON source with the data from your public S3 bucket
         map.addSource('parking-spots', {
             type: 'geojson',
-            // This URL points to the map data file that your Lambda creates
             data: 'https://map-data-poi.s3.ap-southeast-1.amazonaws.com/map-data.geojson'
         });
-        console.log("Source 'parking-spots' added.");
 
-        // Add a layer to display the data as circles (pins)
+        // Layer 1: The semi-transparent accuracy circle
         map.addLayer({
-            'id': 'parking-layer',
+            'id': 'parking-accuracy-layer',
             'type': 'circle',
             'source': 'parking-spots',
             'paint': {
+                'circle-radius': ['get', 'accuracy'], // Get radius from the 'accuracy' property
                 'circle-color': '#007cbf',
-                'circle-radius': 6,
-                'circle-stroke-width': 2,
-                'circle-stroke-color': '#ffffff'
-            }
-        });
-        console.log("Layer 'parking-layer' added.");
-        
-        // --- NEW DEBUGGING CODE ---
-        // This will tell us if the map is successfully loading the data from the source.
-        map.on('sourcedata', function (e) {
-            if (e.sourceId === 'parking-spots' && e.isSourceLoaded) {
-                const features = map.querySourceFeatures('parking-spots');
-                console.log("✅ Source data loaded successfully. Number of features found:", features.length);
+                'circle-opacity': 0.2,
+                'circle-stroke-width': 1,
+                'circle-stroke-color': '#007cbf',
+                'circle-stroke-opacity': 0.5
             }
         });
 
-        // This will tell us if Mapbox is encountering any rendering errors.
-        map.on('error', function(e) {
-            console.error("❌ Mapbox error:", e.error);
+        // Layer 2: The solid center point
+        map.addLayer({
+            'id': 'parking-point-layer',
+            'type': 'circle',
+            'source': 'parking-spots',
+            'paint': {
+                'circle-radius': 5,
+                'circle-color': '#007cbf',
+                'circle-stroke-width': 1,
+                'circle-stroke-color': '#ffffff'
+            }
         });
-        // --- END DEBUGGING CODE ---
 
         // Create a popup, but don't add it to the map yet.
         const popup = new mapboxgl.Popup({
@@ -80,25 +99,29 @@
         });
 
         // Show popup on mouse hover
-        map.on('mouseenter', 'parking-layer', (e) => {
-            map.getCanvas().style.cursor = 'pointer'; // Change cursor to a pointer
+        map.on('mouseenter', 'parking-point-layer', (e) => {
+            map.getCanvas().style.cursor = 'pointer';
 
             const coordinates = e.features[0].geometry.coordinates.slice();
             const properties = e.features[0].properties;
 
+            const poiTitle = formatPoiType(properties.poi_type);
+            const accuracyInstruction = getAccuracyInstruction(properties.accuracy);
+
             const popupHTML = `
-                <h3>Parking Spot</h3>
+                <h3>${poiTitle}</h3>
                 <p><strong>Floor:</strong> ${properties.floor}</p>
                 <p><strong>Slot:</strong> ${properties.slot_id}</p>
                 <p><strong>Address:</strong> ${properties.address}</p>
-                <img src="${properties.image_url}" alt="Parking Spot Image" width="200" />
+                <p><strong>Accuracy:</strong> ${accuracyInstruction}</p>
+                <img src="${properties.image_url}" alt="POI Image" width="200" />
             `;
             
             popup.setLngLat(coordinates).setHTML(popupHTML).addTo(map);
         });
 
         // Hide popup when mouse leaves
-        map.on('mouseleave', 'parking-layer', () => {
+        map.on('mouseleave', 'parking-point-layer', () => {
             map.getCanvas().style.cursor = '';
             popup.remove();
         });
