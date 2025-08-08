@@ -21,15 +21,13 @@
 
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js"></script>
 <script>
-    // YOUR MAPBOX ACCESS TOKEN
     mapboxgl.accessToken = 'pk.eyJ1Ijoia2Fuc3ltbTN0cnkiLCJhIjoiY21kbzczZnJlMjQwMDJ2b3N4cnF5ZDRpbyJ9.O96MKO58HtHA9UdcIsM0qQ';
 
     const map = new mapboxgl.Map({
         container: 'map',
-        // YOUR MAPBOX STYLE URL
         style: 'mapbox://styles/kansymm3try/cmdo79m5a00bc01s89dcs6so9',
         center: [100.523186, 13.736717], // Starting position centered on Bangkok
-        zoom: 11 // Starting zoom
+        zoom: 11
     });
 
     // --- HELPER FUNCTIONS ---
@@ -41,6 +39,7 @@
         else return `Low (spot is in this general area, GPS was weak)`;
     }
 
+    // --- THIS FUNCTION FORMATS THE TITLE ---
     function formatPoiType(poiType) {
         if (!poiType) return "Point of Interest";
         switch (poiType) {
@@ -51,63 +50,40 @@
             case 'dropoff':
                 return 'Drop-off Location';
             default:
-                // Capitalize the first letter for unknown types
                 return poiType.charAt(0).toUpperCase() + poiType.slice(1);
         }
     }
 
-    // This block runs after the map has finished loading
     map.on('load', () => {
-        // Add a GeoJSON source with the data from your public S3 bucket
         map.addSource('parking-spots', {
             type: 'geojson',
             data: 'https://map-data-poi.s3.ap-southeast-1.amazonaws.com/map-data.geojson'
         });
 
-        // Layer 1: The semi-transparent accuracy circle
+        // Layer for the ACCURACY RADIUS CIRCLE
         map.addLayer({
-            'id': 'parking-accuracy-layer',
-            'type': 'circle',
-            'source': 'parking-spots',
-            'paint': {
-                'circle-radius': ['get', 'accuracy'], // Get radius from the 'accuracy' property
-                'circle-color': '#007cbf',
-                'circle-opacity': 0.2,
-                'circle-stroke-width': 1,
-                'circle-stroke-color': '#007cbf',
-                'circle-stroke-opacity': 0.5
-            }
+            'id': 'parking-accuracy-layer', 'type': 'circle', 'source': 'parking-spots',
+            'paint': { 'circle-radius': ['get', 'accuracy'], 'circle-color': '#007cbf', 'circle-opacity': 0.2, 'circle-stroke-width': 1, 'circle-stroke-color': '#007cbf', 'circle-stroke-opacity': 0.5 }
         });
 
-        // Layer 2: The solid center point
+        // Layer for the CENTER POINT
         map.addLayer({
-            'id': 'parking-point-layer',
-            'type': 'circle',
-            'source': 'parking-spots',
-            'paint': {
-                'circle-radius': 5,
-                'circle-color': '#007cbf',
-                'circle-stroke-width': 1,
-                'circle-stroke-color': '#ffffff'
-            }
+            'id': 'parking-point-layer', 'type': 'circle', 'source': 'parking-spots',
+            'paint': { 'circle-radius': 5, 'circle-color': '#007cbf', 'circle-stroke-width': 1, 'circle-stroke-color': '#ffffff' }
         });
 
-        // Create a popup, but don't add it to the map yet.
-        const popup = new mapboxgl.Popup({
-            closeButton: false,
-            closeOnClick: false
-        });
+        const popup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false });
 
-        // Show popup on mouse hover
         map.on('mouseenter', 'parking-point-layer', (e) => {
             map.getCanvas().style.cursor = 'pointer';
-
             const coordinates = e.features[0].geometry.coordinates.slice();
             const properties = e.features[0].properties;
 
+            // --- USE THE HELPER FUNCTIONS ---
             const poiTitle = formatPoiType(properties.poi_type);
             const accuracyInstruction = getAccuracyInstruction(properties.accuracy);
 
+            // --- UPDATED POPUP ---
             const popupHTML = `
                 <h3>${poiTitle}</h3>
                 <p><strong>Floor:</strong> ${properties.floor}</p>
@@ -120,7 +96,6 @@
             popup.setLngLat(coordinates).setHTML(popupHTML).addTo(map);
         });
 
-        // Hide popup when mouse leaves
         map.on('mouseleave', 'parking-point-layer', () => {
             map.getCanvas().style.cursor = '';
             popup.remove();
